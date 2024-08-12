@@ -3,13 +3,14 @@ from dotenv import load_dotenv
 import json
 import logging
 from logging.handlers import RotatingFileHandler
+import multiprocessing
 import os
 import time
 import uuid
 from zoneinfo import ZoneInfo
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BlockingScheduler
 from flask import Flask, redirect, render_template
 from flask import request
 from flask_apscheduler import APScheduler
@@ -48,13 +49,24 @@ with app.app_context():
     engine_url = db.engine.url
     db.create_all()
 
+
 # initialize scheduler
+def start_scheduler_internal(flask_app):
+    scheduler.init_app(flask_app)
+    scheduler.start()
+
+
 app.config["SCHEDULER_JOBSTORES"] = {
     "default": SQLAlchemyJobStore(url=engine_url)
 }
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
+app.config["SCHEDULER_EXECUTORS"] = {
+    'default': {'type': 'processpool', 'max_workers': 2}
+}
+scheduler = APScheduler(BlockingScheduler())
+scheduler_process = multiprocessing.Process(target=start_scheduler_internal, args=(app,))
+scheduler_process.name = "APSchedulerStarter"
+scheduler_process.start()
+
 
 ###
 # ROOT
