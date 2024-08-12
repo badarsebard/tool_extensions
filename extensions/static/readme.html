@@ -1,0 +1,36 @@
+<h1 id="redoist">Redoist</h1>
+<p>The Redoist integration for Todoist allows a user to create copies of tasks that are continually updated. Tasks can be linked within the same project or across different projects. Links can also be one-way or bidirectional.</p>
+<h2 id="creating-a-redoist-task">Creating a Redoist Task</h2>
+<p>First select a task you want to create a copy of. Open the context menu of the task and select the Redoist integration. This will open a window where you will choose the project the new task will be created in and the type of link you want to create.</p>
+<p>There are three options for the type of link:</p>
+<ul>
+<li>Outbound</li>
+<li>Inbound</li>
+<li>Bidirectional</li>
+</ul>
+<p>Outbound links will use the existing task as the source for any updates. When the source task is updated, the linked task will be updated to match. Inbound links will instead use the new task as the source for any updates. Bidirectional links will update both tasks to match each other.</p>
+<h2 id="identifying-redoist-tasks">Identifying Redoist Tasks</h2>
+<p>Redoist will add labels to tasks to indicate that they are linked and how. For one-way links, the label will be <code>redoist:source</code> or <code>redoist:destination</code>, indicating which task will be used to update the other. For bidirectional links, the label will be <code>redoist:bidirectional</code>.</p>
+<h2 id="updating-redoist-tasks">Updating Redoist Tasks</h2>
+<p>When a task is updated, Redoist will update any linked tasks to match. This includes changes to the following information:</p>
+<ul>
+<li>Title</li>
+<li>Description</li>
+<li>Due Date</li>
+<li>Priority</li>
+<li>Labels</li>
+<li>Parent Task (varies)</li>
+<li>Comments</li>
+<li>Completion</li>
+<li>Deletion</li>
+</ul>
+<p>The assignee of a task will not be updated or assigned by the Redoist integration. This is to prevent unintended access of users to projects of which they aren&#39;t a member. </p>
+<p>When creating a Redoist task from a subtask, if the parent task is also linked by Redoist, then the new subtask will be created as a subtask of the corresponding linked parent task. If the parent task is not linked, then the new subtask will be created as a top-level task.</p>
+<h2 id="removing-redoist-links">Removing Redoist Links</h2>
+<p>There are three ways to remove the linkage between Redoist tasks:</p>
+<ul>
+<li>Delete the source task</li>
+<li>Complete the source task</li>
+<li>Use the integration on either linked task and select the <code>Unlink</code> option</li>
+</ul>
+<p>Completion and deletion of a task will remove the linkage between tasks only after the linked task has been closed or deleted. Completing or deleting a destination task will not affect the source task and may cause errors.</p>

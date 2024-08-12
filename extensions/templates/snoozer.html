@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="content">
+    <h2>Todoist Snoozer</h2>
+    <p>Set a snooze timer on tasks you want out of the way. Designate a section/column in your Todoist project to hold snoozed tasks and use the integration to mark a task as snoozed for a specified period of time. The integration will move the task to the designated "snooze" section and then return the task to its original section on expiration of the snooze. Snoozed tasks will have the "snoozed" label apply to them. Remove the label to cancel the snooze.</p>
+    <hr>
+    <button onclick="window.location.href='/snoozer/auth'">Login</button>
+</section>
+{% endblock %}

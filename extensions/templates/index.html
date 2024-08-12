@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="content">
+    <ul>
+        <li>
+            <h2><a href="/redoist">Redoist</a></h2>
+            <p>Create copies of tasks that are continually updated. Tasks can be linked within the same project or across different projects. Links can be one-way or bidirectional.</p>
+        </li>
+        <li>
+            <h2><a href="/snoozer">Todoist Snoozer</a></h2>
+            <p>Temporarily moves a card to a "Snooze" section of the user's Inbox. The user specifies the expiration time of the snooze and the integration will return the task to its previous section after the snooze expires.</p>
+        </li>
+        <li>
+            <h2><a href="/slack-to-do">Slack to Todoist</a></h2>
+            <p>Creates a Todoist task in a user's Inbox when the user reacts to a Slack message with the Todoist emoji.</p>
+        </li>
+    </ul>
+</section>
+{% endblock %}
