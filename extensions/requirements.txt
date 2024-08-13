@@ -1,7 +1,8 @@
-requests==2.31.0
+requests==2.32.3
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 Flask-APScheduler==1.13.1
-todoist-api-python==2.1.3
-SQLAlchemy==2.0.27
+todoist-api-python==2.1.6
+SQLAlchemy==2.0.32
 python-dotenv==1.0.1
+tzdata==2024.1

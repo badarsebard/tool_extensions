@@ -826,7 +826,7 @@ def redoist_auth_callback():
     db.session.add(user)
     db.session.delete(oauth_state)
     db.session.commit()
-    return "You may now close this window."
+    return render_template("auth_success.html")
 
 
 ###
@@ -1187,7 +1187,7 @@ def snoozer_auth_callback():
     db.session.add(user)
     db.session.delete(oauth_state)
     db.session.commit()
-    return "You may now close this window."
+    return render_template("auth_success.html")
 
 
 ###
