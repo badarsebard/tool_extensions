@@ -823,9 +823,18 @@ def redoist_auth_callback():
             logger.error("Failed to get user info.")
             return "Failed to get user info.", 400
 
+        user = db.session.execute(
+            db.select(RedoistUsers).where(RedoistUsers.id == user_id)
+        ).scalar_one_or_none()
+
         # save user to db
-        user = RedoistUsers(id=user_id, api_key=api_key)
+        if user is None:
+            user = RedoistUsers(id=user_id, api_key=api_key, sync_token="*")
+        else:
+            user.api_key = api_key
         db.session.add(user)
+
+        # save user to db
         db.session.delete(oauth_state)
         db.session.commit()
         return render_template("auth_success.html")
@@ -1204,9 +1213,19 @@ def snoozer_auth_callback():
         if not user_id:
             logger.error("Failed to get user info.")
             return "Failed to get user info.", 400
+
+        user = db.session.execute(
+            db.select(SnoozerUsers).where(SnoozerUsers.id == user_id)
+        ).scalar_one_or_none()
+
         # save user to db
-        user = SnoozerUsers(id=user_id, api_key=api_key)
+        if user is None:
+            user = SnoozerUsers(id=user_id, api_key=api_key, sync_token="*")
+        else:
+            user.api_key = api_key
         db.session.add(user)
+
+        # save user to db
         db.session.delete(oauth_state)
         db.session.commit()
         return render_template("auth_success.html")
