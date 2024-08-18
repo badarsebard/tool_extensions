@@ -820,15 +820,11 @@ def redoist_auth_callback():
         user_info = api.sync(["user"])
         user_id = user_info.get("user").get("id") if user_info.get("user") else None
         if not user_id:
+            logger.error("Failed to get user info.")
             return "Failed to get user info.", 400
 
-        user = db.session.execute(
-            db.select(RedoistUsers).where(RedoistUsers.id == user_id)
-        ).scalar_one_or_none()
-
         # save user to db
-        if user is None:
-            user = RedoistUsers(id=user_id, api_key=api_key)
+        user = RedoistUsers(id=user_id, api_key=api_key)
         db.session.add(user)
         db.session.delete(oauth_state)
         db.session.commit()
@@ -1142,6 +1138,7 @@ def get_snoozer_settings_card(user_id, api_key, chosen_project=None):
 
 @app.route("/snoozer/auth")
 def snoozer_auth():
+    logger.debug(f"{request.method} {request.path}")
     # first clean up expired states
     db.session.execute(
         db.delete(OauthState).where(OauthState.expiration < int(time.time()))
@@ -1160,14 +1157,17 @@ def snoozer_auth():
 
 @app.route("/snoozer/auth/callback")
 def snoozer_auth_callback():
+    logger.debug(f"{request.method} {request.path}")
     # possible error responses from Todoist (https://developer.todoist.com/guides/#step-1-authorization-request)
     if err := request.args.get("error"):
         # User Rejected Authorization Request; error=access_denied
         if err == "access_denied":
-            return "Authorization request denied by user."
+            logger.error("Authorization request denied by user.")
+            return "Authorization request denied by user.", 400
         # Invalid Application Status; error=invalid_application_status
         if err == "invalid_application_status":
-            return "Invalid application status."
+            logger.error("Invalid application status.")
+            return "Invalid application status.", 400
 
     # successful oauth flow
     code = request.args.get("code")
@@ -1178,39 +1178,40 @@ def snoozer_auth_callback():
         db.select(OauthState).where(OauthState.state == state)
     ).one_or_none()
     if oauth_state is None:
-        return "Invalid state."
+        logger.error("Invalid state.")
+        return "Invalid state.", 400
     if int(time.time()) > oauth_state.expiration:
+        logger.error("Expired state.")
         db.session.delete(oauth_state)
         db.session.commit()
-        return "Expired state."
+        return "Expired state.", 400
     t = requests.post(
         "https://todoist.com/oauth/access_token",
         data={"client_id": client_id, "client_secret": client_secret, "code": code},
     )
-    # {
-    #   "access_token": "0123456789abcdef0123456789abcdef01234567",
-    #   "token_type": "Bearer"
-    # }
-    token = t.json()
-    api_key = token.get("access_token")
-    api = Api(api_key)
-    # get user info
-    user_info = api.sync(["user"])
-    user_id = user_info.get("user").get("id") if user_info.get("user") else None
-    if not user_id:
-        return "Failed to get user info."
-
-    user = db.session.execute(
-        db.select(SnoozerUsers).where(SnoozerUsers.id == user_id)
-    ).scalar_one_or_none()
-
-    # save user to db
-    if user is None:
+    logger.debug(f"Token exchange resulted in status code: {t.status_code}")
+    if t.ok:
+        # {
+        #   "access_token": "0123456789abcdef0123456789abcdef01234567",
+        #   "token_type": "Bearer"
+        # }
+        token = t.json()
+        api_key = token.get("access_token")
+        api = Api(api_key)
+        # get user info
+        user_info = api.sync(["user"])
+        user_id = user_info.get("user").get("id") if user_info.get("user") else None
+        if not user_id:
+            logger.error("Failed to get user info.")
+            return "Failed to get user info.", 400
+        # save user to db
         user = SnoozerUsers(id=user_id, api_key=api_key)
-    db.session.add(user)
-    db.session.delete(oauth_state)
-    db.session.commit()
-    return render_template("auth_success.html")
+        db.session.add(user)
+        db.session.delete(oauth_state)
+        db.session.commit()
+        return render_template("auth_success.html")
+    else:
+        return "Token exchange failed.", 400
 
 
 ###
