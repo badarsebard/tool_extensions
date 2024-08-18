@@ -49,9 +49,7 @@ with app.app_context():
 
 
 # initialize scheduler
-app.config["SCHEDULER_JOBSTORES"] = {
-    "default": SQLAlchemyJobStore(url=engine_url)
-}
+app.config["SCHEDULER_JOBSTORES"] = {"default": SQLAlchemyJobStore(url=engine_url)}
 scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
@@ -758,6 +756,7 @@ def redoist_update():
 
 @app.route("/redoist/auth")
 def redoist_auth():
+    logger.debug(f"{request.method} {request.path}")
     # first clean up expired states
     db.session.execute(
         db.delete(OauthState).where(OauthState.expiration < int(time.time()))
@@ -776,14 +775,17 @@ def redoist_auth():
 
 @app.route("/redoist/auth/callback")
 def redoist_auth_callback():
+    logger.debug(f"{request.method} {request.path}")
     # possible error responses from Todoist (https://developer.todoist.com/guides/#step-1-authorization-request)
     if err := request.args.get("error"):
         # User Rejected Authorization Request; error=access_denied
         if err == "access_denied":
-            return "Authorization request denied by user."
+            logger.error("Authorization request denied by user.")
+            return "Authorization request denied by user.", 400
         # Invalid Application Status; error=invalid_application_status
         if err == "invalid_application_status":
-            return "Invalid application status."
+            logger.error("Invalid application status.")
+            return "Invalid application status.", 400
 
     # successful oauth flow
     code = request.args.get("code")
@@ -794,39 +796,45 @@ def redoist_auth_callback():
         db.select(OauthState).where(OauthState.state == state)
     ).one_or_none()
     if oauth_state is None:
-        return "Invalid state."
+        logger.error("Invalid state.")
+        return "Invalid state.", 400
     if int(time.time()) > oauth_state.expiration:
+        logger.error("Expired state.")
         db.session.delete(oauth_state)
         db.session.commit()
-        return "Expired state."
+        return "Expired state.", 400
     t = requests.post(
         "https://todoist.com/oauth/access_token",
         data={"client_id": client_id, "client_secret": client_secret, "code": code},
     )
-    # {
-    #   "access_token": "0123456789abcdef0123456789abcdef01234567",
-    #   "token_type": "Bearer"
-    # }
-    token = t.json()
-    api_key = token.get("access_token")
-    api = Api(api_key)
-    # get user info
-    user_info = api.sync(["user"])
-    user_id = user_info.get("user").get("id") if user_info.get("user") else None
-    if not user_id:
-        return "Failed to get user info."
+    logger.debug(f"Token exchange resulted in status code: {t.status_code}")
+    if t.ok:
+        # {
+        #   "access_token": "0123456789abcdef0123456789abcdef01234567",
+        #   "token_type": "Bearer"
+        # }
+        token = t.json()
+        api_key = token.get("access_token")
+        api = Api(api_key)
+        # get user info
+        user_info = api.sync(["user"])
+        user_id = user_info.get("user").get("id") if user_info.get("user") else None
+        if not user_id:
+            return "Failed to get user info.", 400
 
-    user = db.session.execute(
-        db.select(RedoistUsers).where(RedoistUsers.id == user_id)
-    ).scalar_one_or_none()
+        user = db.session.execute(
+            db.select(RedoistUsers).where(RedoistUsers.id == user_id)
+        ).scalar_one_or_none()
 
-    # save user to db
-    if user is None:
-        user = RedoistUsers(id=user_id, api_key=api_key)
-    db.session.add(user)
-    db.session.delete(oauth_state)
-    db.session.commit()
-    return render_template("auth_success.html")
+        # save user to db
+        if user is None:
+            user = RedoistUsers(id=user_id, api_key=api_key)
+        db.session.add(user)
+        db.session.delete(oauth_state)
+        db.session.commit()
+        return render_template("auth_success.html")
+    else:
+        return "Token exchange failed.", 400
 
 
 ###
@@ -999,7 +1007,9 @@ def snoozer_settings():
     if request.json["action"]["actionType"] == "submit":
         if request.json["action"]["actionId"] == "Action.Changed.Input.Project":
             chosen_project = request.json["action"]["inputs"]["Input.Project"]
-            card = get_snoozer_settings_card(user_id, api_key, chosen_project=chosen_project)
+            card = get_snoozer_settings_card(
+                user_id, api_key, chosen_project=chosen_project
+            )
             return card
         if request.json["action"]["actionId"] == "Action.Submit.Final":
             project_id = request.json["action"]["inputs"]["Input.Project"]
@@ -1016,7 +1026,9 @@ def snoozer_settings():
                 snooze_map.target_section_id = section_id
             else:
                 snooze_map = SnoozerMap(
-                    user_id=user_id, source_project_id=project_id, target_section_id=section_id
+                    user_id=user_id,
+                    source_project_id=project_id,
+                    target_section_id=section_id,
                 )
                 db.session.add(snooze_map)
             db.session.commit()
@@ -1057,25 +1069,29 @@ def get_snoozer_settings_card(user_id, api_key, chosen_project=None):
     for snooze_map in snooze_maps:
         sm_el = {
             "type": "TextBlock",
-            "text": f"{project_map[snooze_map.source_project_id]}: {section_map[snooze_map.source_project_id][snooze_map.target_section_id]}"
+            "text": f"{project_map[snooze_map.source_project_id]}: {section_map[snooze_map.source_project_id][snooze_map.target_section_id]}",
         }
         card["card"]["body"].append(sm_el)
     if len(card["card"]["body"]) == 0:
-        card["card"]["body"].append({
+        card["card"]["body"].append(
+            {
+                "type": "TextBlock",
+                "text": "No Snooze Sections configured.",
+            }
+        )
+    card["card"]["body"].append(
+        {
+            "separator": True,
+            "spacing": "large",
             "type": "TextBlock",
-            "text": "No Snooze Sections configured.",
-        })
-    card["card"]["body"].append({
-        "separator": True,
-        "spacing": "large",
-        "type": "TextBlock",
-        "size": "extraLarge",
-        "text": "Add a new Snooze Section",
-    })
+            "size": "extraLarge",
+            "text": "Add a new Snooze Section",
+        }
+    )
     project_choices = [{"title": "", "value": "0", "disabled": True}]
-    project_choices.extend([
-        {"title": project.name, "value": project.id} for project in projects
-    ])
+    project_choices.extend(
+        [{"title": project.name, "value": project.id} for project in projects]
+    )
     project_input = {
         "type": "Input.ChoiceSet",
         "id": "Input.Project",
@@ -1094,18 +1110,25 @@ def get_snoozer_settings_card(user_id, api_key, chosen_project=None):
     if chosen_project is not None:
         project_id = chosen_project
         section_choices = [{"title": "(no section)", "value": None}]
-        section_choices.extend([
-            {"title": section.name, "value": section.id}
-            for section in sections if section.project_id == project_id
-        ])
-        card["card"]["actions"] = [{
-            "id": "Action.Submit.Final",
-            "type": "Action.Submit",
-            "title": "Submit",
-            "style": "positive",
-        }]
+        section_choices.extend(
+            [
+                {"title": section.name, "value": section.id}
+                for section in sections
+                if section.project_id == project_id
+            ]
+        )
+        card["card"]["actions"] = [
+            {
+                "id": "Action.Submit.Final",
+                "type": "Action.Submit",
+                "title": "Submit",
+                "style": "positive",
+            }
+        ]
     else:
-        section_choices = [{"title": "Choose a project first", "value": "0", "disabled": True}]
+        section_choices = [
+            {"title": "Choose a project first", "value": "0", "disabled": True}
+        ]
     section_input = {
         "type": "Input.ChoiceSet",
         "id": "Input.Section",
