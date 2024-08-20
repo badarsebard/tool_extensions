@@ -983,12 +983,13 @@ def snoozer_ui():
             kwargs["section_id"] = source_section_id
         logger.debug(f"Job ID: {job_id}")
         logger.debug(f"Job Args: {kwargs}")
+        logger.debug(f"Job Run Date: {expiration}")
         scheduler.add_job(
             job_id,
             api.move_task,
             kwargs=kwargs,
             trigger="date",
-            run_date=expiration,
+            next_run_time=expiration,
         )
         return {"bridges": [{"bridgeActionType": "finished"}]}
 

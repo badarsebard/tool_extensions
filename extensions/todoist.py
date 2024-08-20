@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 
 import requests
@@ -8,6 +9,8 @@ from todoist_api_python.endpoints import get_sync_url
 from todoist_api_python.http_requests import get, post
 from todoist_api_python.models import Task
 
+
+logger = logging.getLogger(__name__)
 
 class Api(TodoistAPI):
     def __init__(self, token: str) -> None:
@@ -53,6 +56,9 @@ class Api(TodoistAPI):
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
+        logger.debug(
+            f"Moving task {task_id} to {target_name}={target_id}"
+        )
         return self._session.post(endpoint, headers=headers, params=params)
 
     def sync(self, resource_types, sync_token="*"):
