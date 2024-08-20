@@ -944,8 +944,8 @@ def snoozer_ui():
             if input_time is None:
                 input_time = current_time
             expiration = datetime.datetime.strptime(
-                f"{input_date} {input_time}", "%Y-%m-%d %H:%M"
-            )
+                f"{input_date} {input_time}", "%Y-%m-%d %H:%M",
+            ).replace(tzinfo=user_tz)
         else:
             data = request.json["action"]["data"]
             if data == "today":
